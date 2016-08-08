@@ -5,69 +5,160 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Stylometry  
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.tokenize.Tokenizer;
+import opennlp.tools.tokenize.TokenizerME;
+import opennlp.tools.tokenize.TokenizerModel;
+import opennlp.tools.util.InvalidFormatException;
+
+public class BookAnalysis  
 {
-	private ArrayList<String> book1Lines;
-	private ArrayList<String> book2Lines;
-	private ArrayList<String> book3Lines;
+	private String bookContents;
 	
-	private final String book1 = "C:\\Sorcerer's Stone.txt";
-	private final String book2 = "C:\\chamber of secrets.txt";
-	private final String book3 = "C:\\azkaban.txt";
+	private ArrayList<String> bookLines;
 	
-	public Stylometry() throws IOException {
-		book1Lines = this.readFile(book1);
-		book2Lines = this.readFile(book2);
-		book3Lines = this.readFile(book3);
+	private String PARAGRAPH_SPLIT_REGEX = "(?m)(?=^\\s{2})";
+	private Pattern wordPattern = Pattern.compile("^[a-zA-Z]+(-|'|[...])*[a-zA-Z]*$");
+	private Pattern punctuationPattern = Pattern.compile("\\p{Punct}");
+	
+	private int puncCount;
+	private int wordCount;
+	private int paragraphCount;
+	private int sentenceCount;
+	private Long letterCount;
+	
+	
+	public BookAnalysis(String path) throws IOException {
+		bookContents = this.readFile(path);
+		puncCount      = 0;
+		letterCount    = 0L;
+		wordCount      = 0;
+		sentenceCount  = 0;
+		paragraphCount = 0;
 	}
 	
-	public int sentenceCount(){
-		return book1Lines.size();
+	public void performStylometricAnalysis() throws IOException{
+		   this.splitToSentences();
+		   this.Tokenize();
+		   this.paragraphCount();
 	}
 	
-	public int punctCount(){
-		
-		Pattern p = Pattern.compile("\\p{Punct}");
-		int count = 0;
-		
-		for(String s:book1Lines)
-		{
-			Matcher m = p.matcher(s);
-			while (m.find()) {
-				count++;
-			}
-		}
-		
-		return count;
+	public void splitToSentences() throws IOException {
+
+			// Training Model for sentence split
+			InputStream is = new FileInputStream("C:\\en-sent.bin");		
+			SentenceModel model = new SentenceModel(is);
+			SentenceDetectorME sdetector = new SentenceDetectorME(model);
+		 
+			//Book is split to sentences
+			String sentences[] = sdetector.sentDetect(bookContents);
+			bookLines = new ArrayList<String>(Arrays.asList(sentences));
+			sentenceCount = bookLines.size();
+			is.close();
 
 	}
 	
-	public ArrayList<String> readFile(String path) throws IOException{
+	public void Tokenize() throws InvalidFormatException, IOException {
 		
-		ArrayList<String> tempList = new ArrayList<>();
+		// Training Model for Word and Punctuation Tokenizer
+		InputStream is = new FileInputStream("C:\\nl-token.bin");
+		TokenizerModel model = new TokenizerModel(is);
+		Tokenizer tokenizer = new TokenizerME(model);
+				
+		for(String s:bookLines){
+			
+			//Handles for Ellipsis - Bad model :(
+			s = s.replace("...", ".");	
+			String tokens[] = tokenizer.tokenize(s);		
+			
+			for (String a : tokens){
+				
+					if(containsPunctuation(a))
+						++puncCount;
+					
+					if(containsWord(a)){
+						++wordCount;
+						letterCount+=a.length();
+					}		
+			}		
+		}	 
+		is.close();
+	}
+	
+	public boolean containsPunctuation(String a){
 		
-		BufferedReader b = new BufferedReader (new FileReader(path));
-		String line;
-
-		while((line = b.readLine()) != null){
-		   tempList.add(line);
+		Matcher m = punctuationPattern.matcher(a);
+		if(m.find()){
+			return true;
 		}
+		else
+			return false;
 		
-		return tempList;
-	}	
+	}
+	
+	public boolean containsWord(String a){
+		
+		Matcher m = wordPattern.matcher(a);
+		if(m.find()){
+			return true;
+		}
+		else
+			return false;
+		
+	}
+	
+	public double punctDensityPerWord(){
+		return (double)puncCount/wordCount;
+	}
+	
+	public double punctDensityPerSentence(){
+		return (double)puncCount/sentenceCount;
+	}
+	
+	public double wordDensityPerSentence(){
+		return (double)wordCount/sentenceCount;
+	}
+	
+	public double letterDensityPerSentence(){
+		return (double)letterCount/sentenceCount;
+	}
+	
+	public double letterDensityPerParagraph(){
+		return (double)letterCount/(paragraphCount);
+	}
+	
+	public double wordDensityPerParagraph(){
+		return (double)wordCount/(paragraphCount);
+	}
+	
+	public double sentenceDensityPerParagraph(){
+		return (double)(bookLines.size())/(paragraphCount);
+	}
+	
+	public void paragraphCount() {
+	    String[] paragraphs = bookContents.split(PARAGRAPH_SPLIT_REGEX);
+	    paragraphCount = paragraphs.length;
+	}
    
+	public String readFile(String path) throws IOException{		
+		return new String(Files.readAllBytes(Paths.get(path)));
+	}	
 	
    public static void main( String[ ] args ) throws IOException
    {
-	   Stylometry s = new Stylometry();
-	   int totalPunc = s.punctCount();
-	   int totalSent = s.sentenceCount();
-	   System.out.println(totalPunc+" "+totalSent);
+	   BookAnalysis s = new BookAnalysis("C:\\Sorcerer's Stone.txt");   
+	   s.performStylometricAnalysis();
+
       
    }
 }
