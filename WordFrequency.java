@@ -22,7 +22,7 @@ public class WordsFrequency {
 		printMap(wordfreq);
 
 	}
-
+	//for reading the file
 	public static HashMap<String, Integer> readFile(String filen) {
 		
 		File file = new File(filen);
@@ -44,6 +44,7 @@ public class WordsFrequency {
 		return a;
 	}
 
+	//sorting hash map in descending order using frequency of word
 	private static HashMap<String, Integer> sortByValues(HashMap map) {
 		List list = new LinkedList(map.entrySet());
 
@@ -61,7 +62,7 @@ public class WordsFrequency {
 		}
 		return sortedHashMap;
 	}
-
+	//printing top 10 words in each book
 	public static void printMap(Map<String, Integer> wordfreq) {
 
 		int count = 0;
@@ -73,7 +74,7 @@ public class WordsFrequency {
 
 		}
 	}
-
+	//entry of words and its frquency into hashmap
 	public static HashMap<String, Integer> hashMapEntry(HashMap<String, Integer> a, String word) {
 
 		if (a.containsKey(word)) {
@@ -87,7 +88,7 @@ public class WordsFrequency {
 		}
 		return a;
 	}
-
+	//spliiting line using delimiters
 	public static HashMap<String, Integer> splitLine(HashMap<String, Integer> a, String line) {
 
 		String tokenise[] = line.split("-|\\s|'|\\?|\\!|\\,|\\(|\\)|\\.|\\-|\"|`|;|\\*");
